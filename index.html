@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lakástakarék-kalkulátor – Wekerle Plusz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F4F2; --surface:#FFFFFF; --ink:#182624; --muted:#56635F; --line:#D3D9D6;
+  --own:#2D5C55; --int:#8DB3AB; --state:#B9820F; --alt:#6B5B95; --focus:#2D5C55;
+  --radius-s:6px; --radius-l:14px;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121A19; --surface:#1A2423; --ink:#E6ECEA; --muted:#9DABA8; --line:#2E3B39;
+    --own:#7CC0B3; --int:#3F6D66; --state:#E3B04B; --alt:#B3A3E0; --focus:#7CC0B3;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121A19; --surface:#1A2423; --ink:#E6ECEA; --muted:#9DABA8; --line:#2E3B39;
+  --own:#7CC0B3; --int:#3F6D66; --state:#E3B04B; --alt:#B3A3E0; --focus:#7CC0B3;
+  color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:16px; line-height:1.5; font-variant-numeric:tabular-nums;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:clamp(20px,4vw,48px) clamp(16px,4vw,40px) 48px}
+
+header h1{font-size:1rem; font-weight:600; margin:0 0 4px; letter-spacing:.01em}
+header p{margin:0; color:var(--muted); font-size:.9rem}
+header a{color:inherit}
+
+.hero{
+  margin:28px 0 32px; font-size:clamp(1.55rem,3.6vw,2.6rem); line-height:1.25;
+  font-weight:400; max-width:28ch; letter-spacing:-.01em;
+}
+.hero b{font-weight:700; white-space:nowrap}
+.hero .total{border-bottom:3px solid var(--state)}
+
+.grid{display:grid; grid-template-columns:330px 1fr; gap:28px; align-items:start}
+@media (max-width:880px){ .grid{grid-template-columns:1fr} }
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-l); padding:22px}
+.inputs .field{margin-bottom:22px}
+.inputs .field:last-child{margin-bottom:0}
+.inputs h2{font-size:.95rem; margin:26px 0 14px; padding-top:20px; border-top:1px solid var(--line); font-weight:600}
+label.lbl, .lbl{display:block; font-weight:600; font-size:.9rem; margin-bottom:8px}
+.hint{color:var(--muted); font-size:.82rem; margin-top:6px}
+.hint.warn{color:var(--state)}
+
+.numrow{display:flex; align-items:center; gap:8px}
+input[type="number"]{
+  width:100%; font:inherit; font-size:1.05rem; padding:9px 11px; color:var(--ink);
+  background:var(--bg); border:1px solid var(--line); border-radius:var(--radius-s);
+}
+.unit{color:var(--muted); font-size:.9rem; white-space:nowrap}
+input[type="range"]{width:100%; margin-top:10px; accent-color:var(--own)}
+
+.seg{display:flex; flex-wrap:wrap; gap:6px}
+.seg input{position:absolute; opacity:0; pointer-events:none}
+.seg label{
+  flex:1 1 auto; text-align:center; cursor:pointer; padding:8px 10px; font-size:.88rem;
+  border:1px solid var(--line); border-radius:var(--radius-s); background:var(--bg); user-select:none;
+}
+.seg input:checked + label{background:var(--ink); color:var(--surface); border-color:var(--ink)}
+.seg.years label{flex:1 0 40px}
+.seg.stack{flex-direction:column}
+.seg.stack label{text-align:left}
+
+input:focus-visible, .seg input:focus-visible + label, button:focus-visible, summary:focus-visible{
+  outline:2px solid var(--focus); outline-offset:2px;
+}
+
+/* results */
+.results{display:flex; flex-direction:column; gap:28px}
+.compbar{display:flex; height:18px; border-radius:4px; overflow:hidden; background:var(--line)}
+.compbar span{display:block; height:100%; transition:width .35s ease}
+.stats{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:18px}
+@media (max-width:620px){ .stats{grid-template-columns:repeat(2,1fr)} }
+.stat .k{display:flex; align-items:center; gap:7px; font-size:.82rem; color:var(--muted)}
+.stat .v{font-size:1.25rem; font-weight:700; margin-top:2px}
+.sw{width:10px; height:10px; border-radius:2px; flex:none}
+.sw.line{height:3px; border-radius:2px}
+
+.panel h2{font-size:1rem; margin:0 0 4px; font-weight:600}
+.panel .sub{color:var(--muted); font-size:.85rem; margin:0 0 14px}
+
+.chart svg{width:100%; height:auto; display:block}
+.chart .axis text{fill:var(--muted); font-size:12px}
+.chart .grid line{stroke:var(--line)}
+.legend{display:flex; flex-wrap:wrap; gap:16px; font-size:.82rem; color:var(--muted); margin-top:10px}
+.legend span{display:flex; align-items:center; gap:7px}
+
+.vs{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+@media (max-width:520px){ .vs{grid-template-columns:1fr} }
+.vs .box{border:1px solid var(--line); border-radius:var(--radius-s); padding:14px}
+.vs .box .n{font-size:1.35rem; font-weight:700}
+.vs .box .m{color:var(--muted); font-size:.85rem}
+.delta{margin-top:14px; font-size:1rem}
+.delta b{white-space:nowrap}
+
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:.88rem; min-width:620px}
+th,td{padding:8px 10px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-weight:600; color:var(--muted); font-size:.8rem}
+tbody tr.mark td{border-bottom:2px solid var(--state)}
+tfoot td{font-weight:700; border-bottom:none}
+
+.note{color:var(--muted); font-size:.8rem; line-height:1.55; margin-top:36px; max-width:80ch}
+.note p{margin:0 0 8px}
+
+@media (prefers-reduced-motion: reduce){ .compbar span{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Lakástakarék-kalkulátor</h1>
+    <p>Wekerle Plusz lakástakarék (2027. januártól), a <a href="https://wekerle.kormany.hu/#takarek">wekerle.kormany.hu</a> közzétett feltételei alapján</p>
+  </header>
+
+  <p class="hero" id="hero" aria-live="polite"></p>
+
+  <div class="grid">
+    <!-- INPUTS -->
+    <form class="panel inputs" id="form" onsubmit="return false">
+      <div class="field">
+        <label class="lbl" for="monthly">Havi befizetés</label>
+        <div class="numrow">
+          <input type="number" id="monthly" min="0" max="1000000" step="1000" value="100000" inputmode="numeric">
+          <span class="unit">Ft / hó</span>
+        </div>
+        <input type="range" id="monthlyRange" min="0" max="300000" step="5000" value="100000" aria-label="Havi befizetés csúszka">
+        <div class="hint" id="capHint"></div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="yearsLbl">Megtakarítási idő</span>
+        <div class="seg years" role="radiogroup" aria-labelledby="yearsLbl" id="years"></div>
+        <div class="hint">Legalább 5 év. Korábbi felmondásnál a támogatás nem jár.</div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="rate">Betéti kamat</label>
+        <div class="numrow">
+          <input type="number" id="rate" min="3" max="15" step="0.1" value="3">
+          <span class="unit">% / év</span>
+        </div>
+        <div class="hint" id="rateHint">A program legalább 3%-ot ír elő.</div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="taxLbl">Kamatadó a lakástakarékon</span>
+        <div class="seg" role="radiogroup" aria-labelledby="taxLbl">
+          <input type="radio" name="tax" id="tax0" value="0" checked><label for="tax0">Adómentes</label>
+          <input type="radio" name="tax" id="tax15" value="0.15"><label for="tax15">15%</label>
+          <input type="radio" name="tax" id="tax28" value="0.28"><label for="tax28">28%</label>
+        </div>
+        <div class="hint">A kamat adózását még nem hirdették ki.</div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="modeLbl">Állami támogatás jóváírása</span>
+        <div class="seg stack" role="radiogroup" aria-labelledby="modeLbl">
+          <input type="radio" name="mode" id="modeA" value="annual" checked><label for="modeA">Évente jóváírva, onnantól kamatozik</label>
+          <input type="radio" name="mode" id="modeE" value="end"><label for="modeE">Lejáratkor kifizetve, kamat nélkül</label>
+        </div>
+      </div>
+
+      <h2>Összehasonlítás</h2>
+      <div class="field">
+        <span class="lbl" id="altLbl">Alternatív megtakarítás</span>
+        <div class="seg" role="radiogroup" aria-labelledby="altLbl">
+          <input type="radio" name="alt" id="altBank" value="bank" checked><label for="altBank">Bankbetét</label>
+          <input type="radio" name="alt" id="altMap" value="map"><label for="altMap">MÁP+</label>
+          <input type="radio" name="alt" id="altCustom" value="custom"><label for="altCustom">Egyedi</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="lbl" for="altRate">Átlagos éves hozam</label>
+        <div class="numrow">
+          <input type="number" id="altRate" min="0" max="20" step="0.1" value="2.5">
+          <span class="unit">% / év</span>
+        </div>
+        <div class="hint">Írd át az aktuális kondícióra. MÁP+ esetén a sávos kamatok átlagát add meg.</div>
+      </div>
+      <div class="field">
+        <span class="lbl" id="altTaxLbl">Kamatadó az alternatíván</span>
+        <div class="seg" role="radiogroup" aria-labelledby="altTaxLbl">
+          <input type="radio" name="altTax" id="altTax0" value="0"><label for="altTax0">Adómentes</label>
+          <input type="radio" name="altTax" id="altTax15" value="0.15"><label for="altTax15">15%</label>
+          <input type="radio" name="altTax" id="altTax28" value="0.28" checked><label for="altTax28">28%</label>
+        </div>
+      </div>
+    </form>
+
+    <!-- RESULTS -->
+    <div class="results">
+      <section class="panel" aria-label="Összetétel">
+        <h2>Miből áll össze a lejárati összeg</h2>
+        <p class="sub" id="compSub"></p>
+        <div class="compbar" id="compbar" role="img"></div>
+        <div class="stats">
+          <div class="stat"><div class="k"><i class="sw" style="background:var(--own)"></i>Saját befizetés</div><div class="v" id="sOwn"></div></div>
+          <div class="stat"><div class="k"><i class="sw" style="background:var(--int)"></i>Nettó kamat</div><div class="v" id="sInt"></div></div>
+          <div class="stat"><div class="k"><i class="sw" style="background:var(--state)"></i>Állami támogatás</div><div class="v" id="sSup"></div></div>
+          <div class="stat"><div class="k">Effektív éves hozam</div><div class="v" id="sIrr"></div></div>
+        </div>
+      </section>
+
+      <section class="panel chart" aria-label="Egyenleg alakulása">
+        <h2>Egyenleg év végén</h2>
+        <p class="sub">Halmozott értékek. A szaggatott vonal után a támogatás 20%-ra emelkedik.</p>
+        <div id="chart"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--own)"></i>Saját befizetés</span>
+          <span><i class="sw" style="background:var(--int)"></i>Kamat</span>
+          <span><i class="sw" style="background:var(--state)"></i>Állami támogatás</span>
+          <span><i class="sw line" style="background:var(--alt);width:16px"></i><span id="legAlt">Alternatíva</span></span>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Összehasonlítás">
+        <h2>Lakástakarék és alternatíva</h2>
+        <p class="sub">Azonos havi befizetéssel, azonos futamidőre.</p>
+        <div class="vs">
+          <div class="box"><div class="m">Lakástakarék</div><div class="n" id="vLtp"></div><div class="m" id="vLtpY"></div></div>
+          <div class="box"><div class="m" id="vAltName"></div><div class="n" id="vAlt"></div><div class="m" id="vAltY"></div></div>
+        </div>
+        <p class="delta" id="delta"></p>
+        <p class="hint">A lakástakarék összege lakásvásárlásra, -építésre vagy energiahatékony felújításra használható fel, az alternatíva szabadon.</p>
+      </section>
+
+      <section class="panel" aria-label="Éves bontás">
+        <h2>Éves bontás</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Év</th><th>Befizetés</th><th>Támogatás</th><th>Nettó kamat</th><th>Egyenleg</th><th id="thAlt">Alternatíva</th></tr></thead>
+            <tbody id="tbody"></tbody>
+            <tfoot id="tfoot"></tfoot>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="note">
+    <p>Számítási feltevések: a befizetés minden hónap elején történik; a kamat havonta időarányosan számolódik, és évente egyszer tőkésítődik (az adó levonása után). Az állami támogatás az 1–5. évben a tárgyévi befizetés 10%-a, legfeljebb 120 000 Ft; a 6–10. évben 20%-a, legfeljebb 240 000 Ft. Mindkét plafon évi 1,2 millió Ft, azaz havi 100 000 Ft befizetésnél telik be. Számlanyitási és -vezetési díjakkal a kalkulátor nem számol.</p>
+    <p>Az effektív éves hozam az a hozamráta, amellyel a havi befizetések a lejárati összegre nőnének.</p>
+    <p>A kalkulátor szemléltető jellegű, nem minősül ajánlatnak vagy személyre szabott befektetési tanácsnak. A végleges feltételeket a vonatkozó jogszabályok és a lakás-takarékpénztárak hirdetményei határozzák meg.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var fmt = new Intl.NumberFormat("hu-HU",{maximumFractionDigits:0});
+  var pct = new Intl.NumberFormat("hu-HU",{minimumFractionDigits:2,maximumFractionDigits:2});
+  function ft(v){ return fmt.format(Math.round(v)) + "\u00a0Ft"; }
+  function mft(v){ return (v/1e6).toLocaleString("hu-HU",{maximumFractionDigits:2}) + "\u00a0M\u00a0Ft"; }
+  function num(el){ var v = parseFloat(String(el.value).replace(",", ".")); return isFinite(v) ? v : 0; }
+  function radio(name){ var r = document.querySelector('input[name="'+name+'"]:checked'); return r ? r.value : null; }
+  function $(id){ return document.getElementById(id); }
+
+  // Program parameters (wekerle.kormany.hu)
+  var P = { minYears:5, maxYears:10, minRate:3,
+            tiers:[ {upto:5, rate:0.10, cap:120000}, {upto:10, rate:0.20, cap:240000} ] };
+  var ALT = { bank:{name:"Bankbetét", rate:2.5, tax:"0.28"},
+              map:{name:"MÁP+", rate:5.0, tax:"0"},
+              custom:{name:"Egyedi alternatíva"} };
+
+  // Build year selector
+  var yWrap = $("years");
+  for (var y = P.minYears; y <= P.maxYears; y++){
+    yWrap.insertAdjacentHTML("beforeend",
+      '<input type="radio" name="years" id="y'+y+'" value="'+y+'"'+(y===10?" checked":"")+'><label for="y'+y+'">'+y+'</label>');
+  }
+
+  function supportFor(year, paid){
+    for (var i=0;i<P.tiers.length;i++){
+      if (year <= P.tiers[i].upto) return Math.min(paid*P.tiers[i].rate, P.tiers[i].cap);
+    }
+    return 0;
+  }
+
+  // Monthly deposits at start of month; interest accrues monthly, capitalised yearly.
+  function simulate(o){
+    var bal=0, held=0, cDep=0, cInt=0, cSup=0, rows=[];
+    for (var y=1; y<=o.years; y++){
+      var accr=0;
+      for (var m=0; m<12; m++){ bal += o.monthly; accr += bal*o.rate/12; }
+      var net = accr*(1-o.tax); bal += net;
+      var dep = 12*o.monthly, sup = o.withSupport ? supportFor(y, dep) : 0;
+      if (o.mode === "annual") bal += sup; else held += sup;
+      cDep += dep; cInt += net; cSup += sup;
+      rows.push({y:y, dep:dep, sup:sup, int:net, bal:bal+held, cDep:cDep, cInt:cInt, cSup:cSup});
+    }
+    return {rows:rows, final:bal+held, dep:cDep, int:cInt, sup:cSup};
+  }
+
+  // Annual effective yield of monthly start-of-month deposits reaching `fv` after n months
+  function irr(monthly, n, fv){
+    if (monthly <= 0 || fv <= 0) return null;
+    function f(i){ var s=0; for (var k=0;k<n;k++) s += monthly*Math.pow(1+i, n-k); return s - fv; }
+    var lo=-0.02, hi=0.06;
+    for (var t=0;t<120;t++){ var mid=(lo+hi)/2; if (f(mid) > 0) hi=mid; else lo=mid; }
+    return Math.pow(1+(lo+hi)/2, 12) - 1;
+  }
+
+  function niceStep(max){
+    var raw = max/5, pow = Math.pow(10, Math.floor(Math.log10(raw))), n = raw/pow;
+    var s = n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10; return s*pow;
+  }
+
+  function drawChart(rows, altRows){
+    var W=720, H=300, x0=58, x1=708, y0=16, y1=262;
+    var maxV = Math.max.apply(null, rows.map(function(r){return r.bal;}).concat(altRows.map(function(r){return r.bal;})).concat([1]));
+    var step = niceStep(maxV*1.05), top = Math.ceil(maxV*1.05/step)*step;
+    function Y(v){ return y1 - (v/top)*(y1-y0); }
+    var n = rows.length, slot = (x1-x0)/n, bw = slot*0.56;
+    var s = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Egyenleg alakulása évenként">';
+    s += '<g class="grid axis">';
+    for (var v=0; v<=top+1; v+=step){
+      s += '<line x1="'+x0+'" x2="'+x1+'" y1="'+Y(v)+'" y2="'+Y(v)+'"/>';
+      s += '<text x="'+(x0-8)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+(v/1e6).toLocaleString("hu-HU",{maximumFractionDigits:1})+' M</text>';
+    }
+    s += '</g>';
+    rows.forEach(function(r,i){
+      var cx = x0 + slot*i + slot/2, x = cx - bw/2;
+      // in "end" mode, interest on support is zero by construction; stack = dep + int + sup
+      var parts = [{v:r.cDep,c:"var(--own)",t:"Saját befizetés"},{v:r.cInt,c:"var(--int)",t:"Kamat"},{v:r.cSup,c:"var(--state)",t:"Állami támogatás"}];
+      var base = 0;
+      parts.forEach(function(p){
+        if (p.v <= 0) return;
+        s += '<rect x="'+x.toFixed(1)+'" y="'+Y(base+p.v).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+(Y(base)-Y(base+p.v)).toFixed(1)+'" fill="'+p.c+'"><title>'+r.y+'. év – '+p.t+': '+ft(p.v)+'</title></rect>';
+        base += p.v;
+      });
+      s += '<text class="axis" x="'+cx+'" y="'+(y1+18)+'" text-anchor="middle" fill="var(--muted)" font-size="12">'+r.y+'.</text>';
+    });
+    if (n > 5){
+      var bx = x0 + slot*5;
+      s += '<line x1="'+bx+'" x2="'+bx+'" y1="'+y0+'" y2="'+y1+'" stroke="var(--state)" stroke-dasharray="4 4" stroke-width="1.5"/>';
+    }
+    var pts = altRows.map(function(r,i){ return (x0+slot*i+slot/2).toFixed(1)+","+Y(r.bal).toFixed(1); }).join(" ");
+    s += '<polyline points="'+pts+'" fill="none" stroke="var(--alt)" stroke-width="2.5" stroke-linejoin="round"/>';
+    altRows.forEach(function(r,i){
+      s += '<circle cx="'+(x0+slot*i+slot/2).toFixed(1)+'" cy="'+Y(r.bal).toFixed(1)+'" r="3.5" fill="var(--alt)"><title>'+r.y+'. év – alternatíva: '+ft(r.bal)+'</title></circle>';
+    });
+    s += '<text x="'+((x0+x1)/2)+'" y="'+(H-4)+'" text-anchor="middle" fill="var(--muted)" font-size="12">év</text>';
+    return s + '</svg>';
+  }
+
+  function render(){
+    var monthly = Math.max(0, num($("monthly")));
+    var years = parseInt(radio("years"),10);
+    var rateIn = num($("rate")), rate = Math.max(P.minRate, rateIn)/100;
+    $("rateHint").className = "hint" + (rateIn < P.minRate ? " warn" : "");
+    $("rateHint").textContent = rateIn < P.minRate ? "A program legalább 3%-ot ír elő, ezért 3%-kal számolunk." : "A program legalább 3%-ot ír elő.";
+    var tax = parseFloat(radio("tax")), mode = radio("mode");
+    var altKey = radio("alt"), altRate = Math.max(0, num($("altRate")))/100, altTax = parseFloat(radio("altTax"));
+    var altName = ALT[altKey].name;
+
+    var ltp = simulate({monthly:monthly, years:years, rate:rate, tax:tax, mode:mode, withSupport:true});
+    var alt = simulate({monthly:monthly, years:years, rate:altRate, tax:altTax, mode:"annual", withSupport:false});
+    var n = years*12, irrL = irr(monthly, n, ltp.final), irrA = irr(monthly, n, alt.final);
+
+    // cap hint
+    var cap = $("capHint");
+    if (monthly > 100000){ cap.className="hint warn"; cap.textContent = "A havi 100 000 Ft feletti rész (" + ft(monthly-100000) + "/hó) már nem kap támogatást."; }
+    else if (monthly < 100000 && monthly > 0){ cap.className="hint"; cap.textContent = "A teljes támogatás havi 100 000 Ft befizetésnél jár."; }
+    else { cap.className="hint"; cap.textContent = ""; }
+
+    $("hero").innerHTML = "Havi <b>"+ft(monthly)+"</b> befizetéssel <b>"+years+" év</b> alatt <b class=\"total\">"+ft(ltp.final)+"</b> gyűlik össze, ebből <b>"+ft(ltp.sup)+"</b> az állam hozzájárulása.";
+
+    var tot = ltp.final || 1;
+    $("compbar").innerHTML =
+      '<span style="width:'+(ltp.dep/tot*100)+'%;background:var(--own)"></span>'+
+      '<span style="width:'+(ltp.int/tot*100)+'%;background:var(--int)"></span>'+
+      '<span style="width:'+(ltp.sup/tot*100)+'%;background:var(--state)"></span>';
+    $("compbar").setAttribute("aria-label", "Saját befizetés "+ft(ltp.dep)+", kamat "+ft(ltp.int)+", állami támogatás "+ft(ltp.sup));
+    $("compSub").textContent = "Lejárati összeg: " + ft(ltp.final) + (mode === "end" ? " (a támogatás lejáratkor, kamat nélkül)" : " (a támogatás évente jóváírva, kamatozik)");
+    $("sOwn").textContent = mft(ltp.dep);
+    $("sInt").textContent = mft(ltp.int);
+    $("sSup").textContent = mft(ltp.sup);
+    $("sIrr").textContent = irrL === null ? "–" : pct.format(irrL*100) + "%";
+
+    $("chart").innerHTML = drawChart(ltp.rows, alt.rows);
+    $("legAlt").textContent = altName;
+
+    $("vLtp").textContent = ft(ltp.final);
+    $("vLtpY").textContent = "effektív hozam: " + (irrL===null?"–":pct.format(irrL*100)+"%");
+    $("vAltName").textContent = altName + " (" + pct.format(altRate*100) + "%, " + (altTax ? Math.round(altTax*100)+"% adó" : "adómentes") + ")";
+    $("vAlt").textContent = ft(alt.final);
+    $("vAltY").textContent = "effektív hozam: " + (irrA===null?"–":pct.format(irrA*100)+"%");
+    var d = ltp.final - alt.final;
+    $("delta").innerHTML = monthly > 0
+      ? (d >= 0 ? "A lakástakarék <b>"+ft(d)+"</b>-tal többet hoz." : "Az alternatíva <b>"+ft(-d)+"</b>-tal többet hoz.")
+      : "Adj meg havi befizetést az összehasonlításhoz.";
+
+    $("thAlt").textContent = altName;
+    $("tbody").innerHTML = ltp.rows.map(function(r,i){
+      return '<tr'+(r.y===5 && years>5 ? ' class="mark"' : '')+'><td>'+r.y+'.</td><td>'+ft(r.dep)+'</td><td>'+ft(r.sup)+'</td><td>'+ft(r.int)+'</td><td>'+ft(r.bal)+'</td><td>'+ft(alt.rows[i].bal)+'</td></tr>';
+    }).join("");
+    $("tfoot").innerHTML = '<tr><td>Összesen</td><td>'+ft(ltp.dep)+'</td><td>'+ft(ltp.sup)+'</td><td>'+ft(ltp.int)+'</td><td>'+ft(ltp.final)+'</td><td>'+ft(alt.final)+'</td></tr>';
+  }
+
+  // wiring
+  var mIn = $("monthly"), mR = $("monthlyRange");
+  mIn.addEventListener("input", function(){ mR.value = Math.min(300000, num(mIn)); render(); });
+  mR.addEventListener("input", function(){ mIn.value = mR.value; render(); });
+  document.querySelectorAll('input[name="alt"]').forEach(function(el){
+    el.addEventListener("change", function(){
+      var a = ALT[el.value];
+      if (a.rate !== undefined){ $("altRate").value = a.rate; $("altTax"+(a.tax==="0"?"0":a.tax==="0.15"?"15":"28")).checked = true; }
+      render();
+    });
+  });
+  $("altRate").addEventListener("input", function(){ if (radio("alt") !== "custom"){ /* keep preset label */ } render(); });
+  $("form").addEventListener("change", render);
+  $("rate").addEventListener("input", render);
+  render();
+})();
+</script>
+</body>
+</html>
